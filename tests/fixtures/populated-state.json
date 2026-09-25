@@ -1,0 +1,46 @@
+{
+  "state": {
+    "txns": [
+      {"date":"2026-04-01","kind":"Salary / Recurring Income","from":"External","to":"Primary Bank","amt":120000,"cat":"Salary","sub":"","com":"April salary"},
+      {"date":"2026-04-03","kind":"Spend - Bank/Cash","from":"Primary Bank","to":"External","amt":25000,"cat":"Housing","sub":"Rent","com":"April rent"},
+      {"date":"2026-04-05","kind":"Spend - Credit Card","from":"Credit Card","to":"External","amt":5000,"cat":"Food","sub":"Groceries","com":"Groceries"},
+      {"date":"2026-04-10","kind":"Credit Card Bill Payment","from":"Primary Bank","to":"Credit Card","amt":5000,"cat":"","sub":"","com":"Card payment"},
+      {"date":"2026-04-15","kind":"Transfer - Between My Accounts","from":"Primary Bank","to":"Broker","amt":20000,"cat":"","sub":"","com":"Fund broker"}
+    ],
+    "accounts": [
+      {"name":"Primary Bank","cls":"Asset","liq":"Current","kind":"Bank","open":50000},
+      {"name":"Credit Card","cls":"Liability","liq":"Current","kind":"Credit Card","open":0},
+      {"name":"Broker","cls":"Asset","liq":"Non-current","kind":"Investment","open":10000}
+    ],
+    "cats": [
+      {"name":"Salary","applies":"Income","fixvar":"Fixed","essdisc":"","incclass":"Recurring"},
+      {"name":"Housing","applies":"Expense","fixvar":"Fixed","essdisc":"Essential","incclass":""},
+      {"name":"Food","applies":"Expense","fixvar":"Variable","essdisc":"Essential","incclass":""}
+    ],
+    "subcats": {"Housing":["Rent"],"Food":["Groceries"]},
+    "budget": [
+      {"cat":"Housing","monthly":25000,"essdisc":"Essential","fixvar":"Fixed"},
+      {"cat":"Food","monthly":8000,"essdisc":"Essential","fixvar":"Variable"}
+    ],
+    "holdings": [
+      {"cls":"Equity","type":"Stock","name":"Synthetic Equity","acct":"Broker","units":10,"avg":1000,"price":1200}
+    ],
+    "lots": [
+      {"holdName":"Synthetic Equity","acct":"Broker","date":"2025-01-10","qty":10,"cost":1000,"source":"Test"}
+    ],
+    "fixedDeposits": [
+      {"id":"fd-fixture","bank":"Fixture Bank","principal":100000,"rate":0.07,"compPerYear":4,"start":"2026-04-01","maturity":"2027-04-01","payout":"Cumulative","status":"Active","tdsPaid":0,"senior":false}
+    ],
+    "taxPayments": [],
+    "capGainsEvents": [],
+    "taxSettings": {"asOfDate":"2026-09-21","regimeMode":"auto","regimeManual":"new"},
+    "modelSettings": {"statementStart":"2026-04-01","asOfDate":"2026-09-21","modelYear":2026},
+    "onboarded": true,
+    "loaded": true
+  },
+  "queues": {
+    "capQueue": [
+      {"id":"txn-add-1","action":"add","createdAt":"2026-09-01T00:00:00.000Z","date":"2026-09-01","kind":"Spend - Bank/Cash","from":"Primary Bank","to":"External","amt":1250,"cat":"Food","sub":"Groceries","com":"Fixture merge"}
+    ]
+  }
+}

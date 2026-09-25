@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "jurisdiction": "IN",
+  "updatedAt": "2026-09-25T09:39:18.930Z",
+  "releases": [
+    {
+      "financialYear": "2026-27",
+      "assessmentYear": "2027-28",
+      "version": 1,
+      "rulePackVersion": "in-fy2026-27-v1",
+      "status": "final",
+      "publishedAt": "2026-09-25T00:00:00Z",
+      "minimumAppVersion": "1.5.0",
+      "path": "tax-rules/in/fy-2026-27/v1.json",
+      "signaturePath": "tax-rules/in/fy-2026-27/v1.sig",
+      "keyId": "pechak-release-2026-01",
+      "publicKeyPath": "tax-rules/keys/pechak-release-2026-01.pub.pem",
+      "sha256": "e849322e00fb494c25f89eca53ec18eb9d76397536fc0cdf0d2fcda3452989b1"
+    }
+  ]
+}

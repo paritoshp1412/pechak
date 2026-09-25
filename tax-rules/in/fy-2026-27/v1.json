@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "rulePackVersion": "in-fy2026-27-v1",
+  "jurisdiction": "IN",
+  "financialYear": "2026-27",
+  "assessmentYear": "2027-28",
+  "publishedAt": "2026-09-25T00:00:00Z",
+  "effectiveFrom": "2026-04-01",
+  "minimumAppVersion": "1.5.0",
+  "status": "final",
+  "sourceUrls": [
+    "https://www.indiabudget.gov.in/doc/memo.pdf",
+    "https://www.incometax.gov.in/iec/foportal/help/individual/return-applicable-1",
+    "https://incometaxindia.gov.in/pages/acts/income-tax-act.aspx",
+    "https://incometaxindia.gov.in/pages/rules/income-tax-rules-1962.aspx",
+    "https://incometaxindia.gov.in/pages/notifications.aspx"
+  ],
+  "summary": "Initial repository release pack for FY 2026-27. It mirrors Pechak 1.5.0 TAX_RULES_DEFAULT. The current engine intentionally uses one shared otherLtRate for all supported non-111A/112A long-term gains; richer workbook capital-gains categories are not represented.",
+  "rules": {
+    "fy": "FY2026-27",
+    "ay": "AY2027-28",
+    "fyStart": "2026-04-01",
+    "fyEnd": "2027-03-31",
+    "newSlabs": [
+      [0, 400000, 0],
+      [400000, 800000, 0.05],
+      [800000, 1200000, 0.1],
+      [1200000, 1600000, 0.15],
+      [1600000, 2000000, 0.2],
+      [2000000, 2400000, 0.25],
+      [2400000, 1000000000000, 0.3]
+    ],
+    "oldSlabs": [
+      [0, 250000, 0],
+      [250000, 500000, 0.05],
+      [500000, 1000000, 0.2],
+      [1000000, 1000000000000, 0.3]
+    ],
+    "rebate": {
+      "newLimit": 1200000,
+      "newMax": 60000,
+      "oldLimit": 500000,
+      "oldMax": 12500
+    },
+    "stdDeduction": {
+      "new": 75000,
+      "old": 50000
+    },
+    "cess": 0.04,
+    "cg": {
+      "equityLtMonths": 12,
+      "stcgRate": 0.2,
+      "ltcgRate": 0.125,
+      "ltcgExempt": 125000,
+      "otherLtMonths": 24,
+      "sgbLtMonths": 12,
+      "otherLtRate": 0.125
+    },
+    "surchargeSlabs": [
+      [0, 5000000, 0],
+      [5000000, 10000000, 0.1],
+      [10000000, 20000000, 0.15],
+      [20000000, 1000000000000, 0.25]
+    ],
+    "surcharge": {
+      "capOnSpecialIncome": 0.15
+    },
+    "advanceTax": {
+      "thresholdPct90": 0.9,
+      "rate": 0.01,
+      "checkpoints": [
+        { "date": "09-15", "pct": 0.3, "months": 3, "label": "15 Sep" },
+        { "date": "12-15", "pct": 0.6, "months": 3, "label": "15 Dec" },
+        { "date": "03-15", "pct": 1, "months": 1, "label": "15 Mar" }
+      ]
+    },
+    "alThreshold": 10000000,
+    "fdTds": {
+      "threshold": 50000,
+      "seniorThreshold": 100000
+    }
+  }
+}

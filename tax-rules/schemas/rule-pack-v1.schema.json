@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pechak.example/schemas/tax-rule-pack-v1.schema.json",
+  "title": "Pechak tax rule pack v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "rulePackVersion",
+    "jurisdiction",
+    "financialYear",
+    "assessmentYear",
+    "publishedAt",
+    "effectiveFrom",
+    "minimumAppVersion",
+    "status",
+    "sourceUrls",
+    "summary",
+    "rules"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "rulePackVersion": { "type": "string", "pattern": "^in-fy[0-9]{4}-[0-9]{2}-v[1-9][0-9]*$" },
+    "jurisdiction": { "const": "IN" },
+    "financialYear": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$" },
+    "assessmentYear": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$" },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "effectiveFrom": { "type": "string", "format": "date" },
+    "minimumAppVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "status": { "enum": ["draft", "final", "withdrawn"] },
+    "sourceUrls": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "format": "uri", "pattern": "^https://" }
+    },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "rules": { "$ref": "#/$defs/rules" }
+  },
+  "$defs": {
+    "rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "positiveAmount": { "type": "number", "minimum": 0, "maximum": 1000000000000 },
+    "slab": {
+      "type": "array",
+      "prefixItems": [
+        { "$ref": "#/$defs/positiveAmount" },
+        { "$ref": "#/$defs/positiveAmount" },
+        { "$ref": "#/$defs/rate" }
+      ],
+      "items": false,
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "slabs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/slab" }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fy",
+        "ay",
+        "fyStart",
+        "fyEnd",
+        "newSlabs",
+        "oldSlabs",
+        "rebate",
+        "stdDeduction",
+        "cess",
+        "cg",
+        "surchargeSlabs",
+        "surcharge",
+        "advanceTax",
+        "alThreshold",
+        "fdTds"
+      ],
+      "properties": {
+        "fy": { "type": "string", "pattern": "^FY[0-9]{4}-[0-9]{2}$" },
+        "ay": { "type": "string", "pattern": "^AY[0-9]{4}-[0-9]{2}$" },
+        "fyStart": { "type": "string", "format": "date" },
+        "fyEnd": { "type": "string", "format": "date" },
+        "newSlabs": { "$ref": "#/$defs/slabs" },
+        "oldSlabs": { "$ref": "#/$defs/slabs" },
+        "rebate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["newLimit", "newMax", "oldLimit", "oldMax"],
+          "properties": {
+            "newLimit": { "$ref": "#/$defs/positiveAmount" },
+            "newMax": { "$ref": "#/$defs/positiveAmount" },
+            "oldLimit": { "$ref": "#/$defs/positiveAmount" },
+            "oldMax": { "$ref": "#/$defs/positiveAmount" }
+          }
+        },
+        "stdDeduction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["new", "old"],
+          "properties": {
+            "new": { "$ref": "#/$defs/positiveAmount" },
+            "old": { "$ref": "#/$defs/positiveAmount" }
+          }
+        },
+        "cess": { "$ref": "#/$defs/rate" },
+        "cg": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["equityLtMonths", "stcgRate", "ltcgRate", "ltcgExempt", "otherLtMonths", "sgbLtMonths", "otherLtRate"],
+          "properties": {
+            "equityLtMonths": { "type": "integer", "minimum": 1, "maximum": 1200 },
+            "stcgRate": { "$ref": "#/$defs/rate" },
+            "ltcgRate": { "$ref": "#/$defs/rate" },
+            "ltcgExempt": { "$ref": "#/$defs/positiveAmount" },
+            "otherLtMonths": { "type": "integer", "minimum": 1, "maximum": 1200 },
+            "sgbLtMonths": { "type": "integer", "minimum": 1, "maximum": 1200 },
+            "otherLtRate": { "$ref": "#/$defs/rate" }
+          }
+        },
+        "surchargeSlabs": { "$ref": "#/$defs/slabs" },
+        "surcharge": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["capOnSpecialIncome"],
+          "properties": { "capOnSpecialIncome": { "$ref": "#/$defs/rate" } }
+        },
+        "advanceTax": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["thresholdPct90", "rate", "checkpoints"],
+          "properties": {
+            "thresholdPct90": { "$ref": "#/$defs/rate" },
+            "rate": { "$ref": "#/$defs/rate" },
+            "checkpoints": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["date", "pct", "months", "label"],
+                "properties": {
+                  "date": { "type": "string", "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$" },
+                  "pct": { "$ref": "#/$defs/rate" },
+                  "months": { "type": "integer", "minimum": 1, "maximum": 12 },
+                  "label": { "type": "string", "minLength": 1, "maxLength": 80 }
+                }
+              }
+            }
+          }
+        },
+        "alThreshold": { "$ref": "#/$defs/positiveAmount" },
+        "fdTds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["threshold", "seniorThreshold"],
+          "properties": {
+            "threshold": { "$ref": "#/$defs/positiveAmount" },
+            "seniorThreshold": { "$ref": "#/$defs/positiveAmount" }
+          }
+        }
+      }
+    }
+  }
+}

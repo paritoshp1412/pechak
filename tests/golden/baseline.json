@@ -1,0 +1,216 @@
+{
+  "snapshot": {
+    "counts": {
+      "transactions": 5,
+      "accounts": 3,
+      "holdings": 1,
+      "lots": 1,
+      "fixedDeposits": 1
+    },
+    "balances": {
+      "Broker": 30000,
+      "Credit Card": 0,
+      "Primary Bank": 120000
+    },
+    "finance": {
+      "netWorth": 152000,
+      "totalAssets": 152000,
+      "totalLiabilities": 0,
+      "portfolioInvested": 30000,
+      "portfolioCurrent": 32000,
+      "income": 120000,
+      "expenses": 30000,
+      "cashFlowCheck": 0,
+      "runway": 4
+    },
+    "tax": {
+      "salary": 120000,
+      "other": 0,
+      "fdAccrued": 7185.9,
+      "capitalGainsExcluded": 0,
+      "newGrandTotal": 0,
+      "oldGrandTotal": 0
+    },
+    "queues": {
+      "transactions": 1,
+      "categories": 0,
+      "accounts": 0,
+      "holdings": 0,
+      "lots": 0,
+      "budget": 0,
+      "deductions": 0,
+      "taxPayments": 0,
+      "capitalGains": 0,
+      "taxRules": 0,
+      "fixedDeposits": 0,
+      "modelSettings": 0
+    }
+  },
+  "backup": {
+    "format": 5,
+    "transactions": 5,
+    "holdings": 1,
+    "queues": {
+      "transactions": 1,
+      "categories": 1,
+      "accounts": 1,
+      "holdings": 1,
+      "lots": 1,
+      "budget": 1,
+      "deductions": 1,
+      "taxPayments": 1,
+      "capitalGains": 1,
+      "taxRules": 1,
+      "fixedDeposits": 1,
+      "modelSettings": 1
+    }
+  },
+  "allQueueBackup": {
+    "format": 5,
+    "transactions": 5,
+    "holdings": 1,
+    "queues": {
+      "transactions": 1,
+      "categories": 1,
+      "accounts": 1,
+      "holdings": 1,
+      "lots": 1,
+      "budget": 1,
+      "deductions": 1,
+      "taxPayments": 1,
+      "capitalGains": 1,
+      "taxRules": 1,
+      "fixedDeposits": 1,
+      "modelSettings": 1
+    }
+  },
+  "largeLedger": {
+    "counts": {
+      "transactions": 5000,
+      "accounts": 3,
+      "holdings": 1,
+      "lots": 1,
+      "fixedDeposits": 1
+    },
+    "balances": {
+      "Broker": 10000,
+      "Credit Card": 0,
+      "Primary Bank": 300000
+    },
+    "finance": {
+      "netWorth": 312000,
+      "totalAssets": 312000,
+      "totalLiabilities": 0,
+      "portfolioInvested": 10000,
+      "portfolioCurrent": 12000,
+      "income": 500000,
+      "expenses": 250000,
+      "cashFlowCheck": 0,
+      "runway": 1.2
+    },
+    "tax": {
+      "salary": 500000,
+      "other": 0,
+      "fdAccrued": 7185.9,
+      "capitalGainsExcluded": 0,
+      "newGrandTotal": 0,
+      "oldGrandTotal": 0
+    },
+    "queues": {
+      "transactions": 0,
+      "categories": 0,
+      "accounts": 0,
+      "holdings": 0,
+      "lots": 0,
+      "budget": 0,
+      "deductions": 0,
+      "taxPayments": 0,
+      "capitalGains": 0,
+      "taxRules": 0,
+      "fixedDeposits": 0,
+      "modelSettings": 0
+    }
+  },
+  "emptyWorkbookImport": {
+    "transactions": 19,
+    "accounts": 3,
+    "holdings": 0,
+    "lots": 1,
+    "fixedDeposits": 1
+  },
+  "populatedWorkbookImport": {
+    "transactions": 20,
+    "accounts": 1,
+    "holdings": 1,
+    "lots": 1,
+    "fixedDeposits": 2
+  },
+  "malformedMessage": "Couldn't read fileNot a valid zip file (no End Of Central Directory record found).",
+  "allQueueMerge": {
+    "source": {
+      "xl/workbook.xml": "dc82dbe55d88ecbb8260a0c7ba2213eba70d5805f2488fc3937e77692d8fc978",
+      "xl/worksheets/sheet1.xml": "ba7c9fcb0e07c74b762fd3d9bbdbc7a84d423e77b0deec7a6414f576e7a68034",
+      "xl/worksheets/sheet10.xml": "8616e81f067168ae726f6b478e0ee1594419f17d8b3ec7aec5bfeaee4858b917",
+      "xl/worksheets/sheet11.xml": "ab51ddf7f9edb4fdd8ec598802c11c387df75663e586119e633b79ebc92b33b0",
+      "xl/worksheets/sheet12.xml": "965e18b216a952435d42b0cde4ed9d69d882d09fa966c15feede4bb2afafe8af",
+      "xl/worksheets/sheet13.xml": "d036ff0d66af6bf31e35a5196c4761511ec105f7076bf832d37ffcfaca540930",
+      "xl/worksheets/sheet14.xml": "291e4a8aecf67f05a883d918c0c5e538eb8095cc0743246783be31cd6f6e1e22",
+      "xl/worksheets/sheet15.xml": "3c7603468590bda6fd65f7801f37737c1ed751fe9ea748c45792d7b6bbb7d7fd",
+      "xl/worksheets/sheet16.xml": "39777516becc05a839112ee284404faa6eb0103f6c151da16d1c661349228018",
+      "xl/worksheets/sheet17.xml": "18d9448be1714fb5916f20f9e743b9754e135c9160211b3ae3accfc4170f62a1",
+      "xl/worksheets/sheet18.xml": "c3a035d7156865d670feedb1ddf19e5c72fe4c067b2b0cd74c9a82153d3d91a1",
+      "xl/worksheets/sheet19.xml": "dfbd5220091389c45ce36bf15f3bb955a8d7f4815029491149c4e42cef9da475",
+      "xl/worksheets/sheet2.xml": "adca8d697351a5239fa1eb7d30eed2aa3c86880edd045d2f9535fc6ff83dea5e",
+      "xl/worksheets/sheet20.xml": "f1b39e0e79b17fcd547518f60816a582f56d824f3c2a73d5723a01666278a7c1",
+      "xl/worksheets/sheet21.xml": "0cf0891f18cf41eed0db1287bfcceb801ce9429307eb2a5826c98b189af83d05",
+      "xl/worksheets/sheet22.xml": "7141bcbcfa5c3f9a05ebbab27bee6037817b579979cb38286dc5d7eb3ef7b8ba",
+      "xl/worksheets/sheet3.xml": "9e9a0fc620ac280e124754be3503c76d34666c74c78672aa12eb70b92157f387",
+      "xl/worksheets/sheet4.xml": "e0edcc75dd6b6502f1df9a077766be5425db34e87528685b5ae2a7472a48c594",
+      "xl/worksheets/sheet5.xml": "05dc92f5a180e03ffc8831c062fb144092d6a72d6214b51344c61079072611dd",
+      "xl/worksheets/sheet6.xml": "21c4adcbb76e4235526eb545e5b626c7fd4fb414db401f494a832c8e27a35251",
+      "xl/worksheets/sheet7.xml": "ea7eac2355a7110a1f9e798db5ac4e0cced923f32c6480fafcbea1269714648e",
+      "xl/worksheets/sheet8.xml": "32829f054a78c07bcead33c2e15c3f9e621d46e7bb812c635763312ca15f4e6c",
+      "xl/worksheets/sheet9.xml": "6709f3dce0396930efb21df9112bc861acf95af2f7435c1d5f8ccc1359d9c07f"
+    },
+    "output": {
+      "xl/workbook.xml": "dc82dbe55d88ecbb8260a0c7ba2213eba70d5805f2488fc3937e77692d8fc978",
+      "xl/worksheets/sheet1.xml": "45319eaeb65d4186454cd7f5cd5f5d0244250b830fcb1cc5bd33dfee6d580c61",
+      "xl/worksheets/sheet10.xml": "8616e81f067168ae726f6b478e0ee1594419f17d8b3ec7aec5bfeaee4858b917",
+      "xl/worksheets/sheet11.xml": "ab51ddf7f9edb4fdd8ec598802c11c387df75663e586119e633b79ebc92b33b0",
+      "xl/worksheets/sheet12.xml": "965e18b216a952435d42b0cde4ed9d69d882d09fa966c15feede4bb2afafe8af",
+      "xl/worksheets/sheet13.xml": "d036ff0d66af6bf31e35a5196c4761511ec105f7076bf832d37ffcfaca540930",
+      "xl/worksheets/sheet14.xml": "291e4a8aecf67f05a883d918c0c5e538eb8095cc0743246783be31cd6f6e1e22",
+      "xl/worksheets/sheet15.xml": "ced88eac4c90ef6e6c09b53c498b32863d8608a27610cc75d744b664ab1fa4cd",
+      "xl/worksheets/sheet16.xml": "d73a8b6eda9efdab794a738a44cd9ac6a2b92b2e957b06162727b94922119014",
+      "xl/worksheets/sheet17.xml": "0d770700f92d7a4ee5e6cd3d6a2d722fd4e20baabc4117298d62ff022dad3776",
+      "xl/worksheets/sheet18.xml": "c3a035d7156865d670feedb1ddf19e5c72fe4c067b2b0cd74c9a82153d3d91a1",
+      "xl/worksheets/sheet19.xml": "dfbd5220091389c45ce36bf15f3bb955a8d7f4815029491149c4e42cef9da475",
+      "xl/worksheets/sheet2.xml": "01ef1c6bf8f05873bf8038629447ece4fa320037ca94418d19a10062df10cd7e",
+      "xl/worksheets/sheet20.xml": "dd8b11455f63188b523acd56d05d7b339225643264f90eb56db8476c69a3be2d",
+      "xl/worksheets/sheet21.xml": "548907819c83a59b694e878ab790ebd84a0710783f403afbfd3f39af4d6ae0c0",
+      "xl/worksheets/sheet22.xml": "d0624f4681e0e1716704666a8609b548339add391f3c31dccb39e7a17b45d2f5",
+      "xl/worksheets/sheet3.xml": "c2ddd107925c75c6b64806935f78f8876387acebc9cb8861671e992826efa762",
+      "xl/worksheets/sheet4.xml": "f6e3467b6092a63a5f4b8f6439c22bca7bd399cb10e3d9dc50ce73d70627b5a2",
+      "xl/worksheets/sheet5.xml": "05dc92f5a180e03ffc8831c062fb144092d6a72d6214b51344c61079072611dd",
+      "xl/worksheets/sheet6.xml": "21c4adcbb76e4235526eb545e5b626c7fd4fb414db401f494a832c8e27a35251",
+      "xl/worksheets/sheet7.xml": "f796e5c48965ae764db05025eeadeddc5553aa37d96032c0e5998a70b1da65e7",
+      "xl/worksheets/sheet8.xml": "32829f054a78c07bcead33c2e15c3f9e621d46e7bb812c635763312ca15f4e6c",
+      "xl/worksheets/sheet9.xml": "6709f3dce0396930efb21df9112bc861acf95af2f7435c1d5f8ccc1359d9c07f"
+    },
+    "remainingQueues": {
+      "transactions": 0,
+      "categories": 0,
+      "accounts": 0,
+      "holdings": 0,
+      "lots": 0,
+      "budget": 0,
+      "deductions": 0,
+      "taxPayments": 0,
+      "capitalGains": 0,
+      "taxRules": 0,
+      "fixedDeposits": 0,
+      "modelSettings": 0
+    },
+    "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  }
+}

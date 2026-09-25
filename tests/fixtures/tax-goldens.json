@@ -1,0 +1,614 @@
+[
+  {
+    "name": "slab boundaries",
+    "operation": "slabs",
+    "incomes": [
+      0,
+      250000,
+      250001,
+      400000,
+      400001,
+      500000,
+      500001,
+      800000,
+      1200000,
+      2400000,
+      2400001
+    ],
+    "expected": {
+      "new": [
+        0,
+        0,
+        0,
+        0,
+        0.05,
+        5000,
+        5000.05,
+        20000,
+        60000,
+        300000,
+        300000.3
+      ],
+      "old": [
+        0,
+        0,
+        0.05,
+        7500,
+        7500.05,
+        12500,
+        12500.2,
+        72500,
+        172500,
+        532500,
+        532500.3
+      ]
+    }
+  },
+  {
+    "name": "87A rebate marginal relief standard deductions and cess",
+    "operation": "regimes",
+    "cases": [
+      {
+        "name": "newAtRebateLimit",
+        "regime": "new",
+        "income": {
+          "salary": 1275000
+        }
+      },
+      {
+        "name": "newJustAboveRebateLimit",
+        "regime": "new",
+        "income": {
+          "salary": 1275010
+        }
+      },
+      {
+        "name": "oldAtRebateLimit",
+        "regime": "old",
+        "income": {
+          "salary": 550000
+        }
+      },
+      {
+        "name": "oldJustAboveRebateLimit",
+        "regime": "old",
+        "income": {
+          "salary": 550010
+        }
+      },
+      {
+        "name": "newCessAndDeduction",
+        "regime": "new",
+        "income": {
+          "salary": 2500000
+        }
+      },
+      {
+        "name": "oldCessAndDeduction",
+        "regime": "old",
+        "income": {
+          "salary": 2500000
+        }
+      }
+    ],
+    "expected": {
+      "newAtRebateLimit": {
+        "grossNormal": 1275000,
+        "std": 75000,
+        "ded": {
+          "chapterVIA": 0,
+          "hra": 0,
+          "total": 0
+        },
+        "taxable": 1200000,
+        "slabTaxAmt": 60000,
+        "rebate": 60000,
+        "relief": 0,
+        "taxAfter": 0,
+        "cess": 0,
+        "total": 0,
+        "bands": [
+          [
+            0,
+            400000,
+            0
+          ],
+          [
+            400000,
+            800000,
+            0.05
+          ],
+          [
+            800000,
+            1200000,
+            0.1
+          ],
+          [
+            1200000,
+            1600000,
+            0.15
+          ],
+          [
+            1600000,
+            2000000,
+            0.2
+          ],
+          [
+            2000000,
+            2400000,
+            0.25
+          ],
+          [
+            2400000,
+            1000000000000,
+            0.3
+          ]
+        ],
+        "limit": 1200000,
+        "maxRebate": 60000
+      },
+      "newJustAboveRebateLimit": {
+        "grossNormal": 1275010,
+        "std": 75000,
+        "ded": {
+          "chapterVIA": 0,
+          "hra": 0,
+          "total": 0
+        },
+        "taxable": 1200010,
+        "slabTaxAmt": 60001.5,
+        "rebate": 0,
+        "relief": 59991.5,
+        "taxAfter": 10,
+        "cess": 0.4,
+        "total": 10.4,
+        "bands": [
+          [
+            0,
+            400000,
+            0
+          ],
+          [
+            400000,
+            800000,
+            0.05
+          ],
+          [
+            800000,
+            1200000,
+            0.1
+          ],
+          [
+            1200000,
+            1600000,
+            0.15
+          ],
+          [
+            1600000,
+            2000000,
+            0.2
+          ],
+          [
+            2000000,
+            2400000,
+            0.25
+          ],
+          [
+            2400000,
+            1000000000000,
+            0.3
+          ]
+        ],
+        "limit": 1200000,
+        "maxRebate": 60000
+      },
+      "oldAtRebateLimit": {
+        "grossNormal": 550000,
+        "std": 50000,
+        "ded": {
+          "chapterVIA": 0,
+          "hra": 0,
+          "total": 0
+        },
+        "taxable": 500000,
+        "slabTaxAmt": 12500,
+        "rebate": 12500,
+        "relief": 0,
+        "taxAfter": 0,
+        "cess": 0,
+        "total": 0,
+        "bands": [
+          [
+            0,
+            250000,
+            0
+          ],
+          [
+            250000,
+            500000,
+            0.05
+          ],
+          [
+            500000,
+            1000000,
+            0.2
+          ],
+          [
+            1000000,
+            1000000000000,
+            0.3
+          ]
+        ],
+        "limit": 500000,
+        "maxRebate": 12500
+      },
+      "oldJustAboveRebateLimit": {
+        "grossNormal": 550010,
+        "std": 50000,
+        "ded": {
+          "chapterVIA": 0,
+          "hra": 0,
+          "total": 0
+        },
+        "taxable": 500010,
+        "slabTaxAmt": 12502,
+        "rebate": 0,
+        "relief": 12492,
+        "taxAfter": 10,
+        "cess": 0.4,
+        "total": 10.4,
+        "bands": [
+          [
+            0,
+            250000,
+            0
+          ],
+          [
+            250000,
+            500000,
+            0.05
+          ],
+          [
+            500000,
+            1000000,
+            0.2
+          ],
+          [
+            1000000,
+            1000000000000,
+            0.3
+          ]
+        ],
+        "limit": 500000,
+        "maxRebate": 12500
+      },
+      "newCessAndDeduction": {
+        "grossNormal": 2500000,
+        "std": 75000,
+        "ded": {
+          "chapterVIA": 0,
+          "hra": 0,
+          "total": 0
+        },
+        "taxable": 2425000,
+        "slabTaxAmt": 307500,
+        "rebate": 0,
+        "relief": 0,
+        "taxAfter": 307500,
+        "cess": 12300,
+        "total": 319800,
+        "bands": [
+          [
+            0,
+            400000,
+            0
+          ],
+          [
+            400000,
+            800000,
+            0.05
+          ],
+          [
+            800000,
+            1200000,
+            0.1
+          ],
+          [
+            1200000,
+            1600000,
+            0.15
+          ],
+          [
+            1600000,
+            2000000,
+            0.2
+          ],
+          [
+            2000000,
+            2400000,
+            0.25
+          ],
+          [
+            2400000,
+            1000000000000,
+            0.3
+          ]
+        ],
+        "limit": 1200000,
+        "maxRebate": 60000
+      },
+      "oldCessAndDeduction": {
+        "grossNormal": 2500000,
+        "std": 50000,
+        "ded": {
+          "chapterVIA": 0,
+          "hra": 0,
+          "total": 0
+        },
+        "taxable": 2450000,
+        "slabTaxAmt": 547500,
+        "rebate": 0,
+        "relief": 0,
+        "taxAfter": 547500,
+        "cess": 21900,
+        "total": 569400,
+        "bands": [
+          [
+            0,
+            250000,
+            0
+          ],
+          [
+            250000,
+            500000,
+            0.05
+          ],
+          [
+            500000,
+            1000000,
+            0.2
+          ],
+          [
+            1000000,
+            1000000000000,
+            0.3
+          ]
+        ],
+        "limit": 500000,
+        "maxRebate": 12500
+      }
+    }
+  },
+  {
+    "name": "111A 112A and shared other-gains rate",
+    "operation": "capitalGains",
+    "capGainsEvents": [
+      {
+        "id": "st-equity",
+        "cls": "Equity",
+        "type": "Stock",
+        "costBasis": 100,
+        "proceeds": 200,
+        "acqDate": "2026-01-01",
+        "saleDate": "2026-05-01",
+        "source": "ledger"
+      },
+      {
+        "id": "lt-equity",
+        "cls": "Equity",
+        "type": "Stock",
+        "costBasis": 100,
+        "proceeds": 200100,
+        "acqDate": "2024-01-01",
+        "saleDate": "2026-05-01",
+        "source": "ledger"
+      },
+      {
+        "id": "st-gold",
+        "cls": "Gold",
+        "type": "Digital Gold",
+        "costBasis": 100000,
+        "proceeds": 130000,
+        "acqDate": "2025-12-01",
+        "saleDate": "2026-05-01",
+        "source": "ledger"
+      },
+      {
+        "id": "lt-gold",
+        "cls": "Gold",
+        "type": "Digital Gold",
+        "costBasis": 100000,
+        "proceeds": 140000,
+        "acqDate": "2023-01-01",
+        "saleDate": "2026-05-01",
+        "source": "ledger"
+      }
+    ],
+    "expected": {
+      "buckets": {
+        "slab": 30000,
+        "stcg111A": 100,
+        "ltcg112A": 200000,
+        "ltcgOther": 40000
+      },
+      "ltcg112ANet": 75000,
+      "tax111A": 20,
+      "tax112A": 9375,
+      "taxOther": 5000,
+      "totalCgTax": 14395,
+      "excluded": 0
+    }
+  },
+  {
+    "name": "surcharge threshold marginal relief and special-income cap",
+    "operation": "surcharge",
+    "regime": "new",
+    "income": {
+      "salary": 20000000,
+      "dividend": 250000
+    },
+    "cg": {
+      "buckets": {
+        "stcg111A": 200000,
+        "ltcgOther": 0
+      },
+      "ltcg112ANet": 200000,
+      "tax111A": 40000,
+      "tax112A": 25000,
+      "totalCgTax": 65000
+    },
+    "expected": {
+      "totalIncomeForSurcharge": 20575000,
+      "rate": 0.25,
+      "cappedRate": 0.15,
+      "dividendTaxPortion": 75000,
+      "taxOnSpecial": 140000,
+      "taxOnNormal": 5557500,
+      "combinedPreCess": 5697500,
+      "surcharge": 1410375,
+      "marginalRelief": 1007875,
+      "surchargeAfterRelief": 402500,
+      "cess": 244000,
+      "grandTotal": 6344000,
+      "threshold": 20000000
+    }
+  },
+  {
+    "name": "advance-tax checkpoints and 234B shortfall",
+    "operation": "advanceTax",
+    "grandTotal": 1000000,
+    "asOfDate": "2027-07-10",
+    "taxPayments": [
+      {
+        "date": "2026-09-15",
+        "type": "Advance",
+        "amount": 100000,
+        "fy": "FY2026-27"
+      },
+      {
+        "date": "2026-12-15",
+        "type": "Advance",
+        "amount": 200000,
+        "fy": "FY2026-27"
+      },
+      {
+        "date": "2027-03-15",
+        "type": "Advance",
+        "amount": 400000,
+        "fy": "FY2026-27"
+      }
+    ],
+    "expected": {
+      "taxDue": 1000000,
+      "c234": [
+        {
+          "date": "09-15",
+          "pct": 0.3,
+          "required": 300000,
+          "actual": 100000,
+          "effective": 200000,
+          "interest": 6000
+        },
+        {
+          "date": "12-15",
+          "pct": 0.6,
+          "required": 600000,
+          "actual": 300000,
+          "effective": 300000,
+          "interest": 9000
+        },
+        {
+          "date": "03-15",
+          "pct": 1,
+          "required": 1000000,
+          "actual": 700000,
+          "effective": 300000,
+          "interest": 3000
+        }
+      ],
+      "total234C": 18000,
+      "triggered234B": true,
+      "shortfall234B": 300000,
+      "months234B": 4,
+      "interest234B": 12000
+    }
+  },
+  {
+    "name": "Schedule AL threshold",
+    "operation": "scheduleAL",
+    "regime": "new",
+    "income": {
+      "salary": 10075001
+    },
+    "expected": {
+      "totalIncome": 10000001,
+      "threshold": 10000000,
+      "required": true
+    }
+  },
+  {
+    "name": "normal and senior FD TDS thresholds",
+    "operation": "fixedDeposits",
+    "fixedDeposits": [
+      {
+        "bank": "Normal",
+        "principal": 1000000,
+        "rate": 0.06,
+        "compPerYear": 1,
+        "start": "2026-04-01",
+        "maturity": "2027-04-01",
+        "payout": "Payout",
+        "senior": false,
+        "tdsPaid": 0
+      },
+      {
+        "bank": "Senior below",
+        "principal": 1000000,
+        "rate": 0.06,
+        "compPerYear": 1,
+        "start": "2026-04-01",
+        "maturity": "2027-04-01",
+        "payout": "Payout",
+        "senior": true,
+        "tdsPaid": 0
+      },
+      {
+        "bank": "Senior above",
+        "principal": 2000000,
+        "rate": 0.06,
+        "compPerYear": 1,
+        "start": "2026-04-01",
+        "maturity": "2027-04-01",
+        "payout": "Payout",
+        "senior": true,
+        "tdsPaid": 0
+      }
+    ],
+    "expected": {
+      "totalInterest": 239342.47,
+      "rows": [
+        {
+          "bank": "Normal",
+          "senior": false,
+          "interest": 59835.62,
+          "threshold": 50000,
+          "tdsLikely": true
+        },
+        {
+          "bank": "Senior below",
+          "senior": true,
+          "interest": 59835.62,
+          "threshold": 100000,
+          "tdsLikely": false
+        },
+        {
+          "bank": "Senior above",
+          "senior": true,
+          "interest": 119671.23,
+          "threshold": 100000,
+          "tdsLikely": true
+        }
+      ]
+    }
+  }
+]
