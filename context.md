@@ -90,23 +90,28 @@ schemas, the immutable FY 2026-27 pack mirroring `TAX_RULES_DEFAULT`, RFC
 8785/Ed25519 Node tooling, immutable promotion safeguards, and reviewed browser
 tax fixtures. Operator instructions are in `tax-rules/README.md`. This is a
 publishing workflow only: runtime fetch/banner/review/apply, override conflicts,
-cache/history/rollback, and richer workbook capital-gains fields remain out of
-scope. The app deliberately retains its single shared `otherLtRate` model.
+and cache/history/rollback remain out of scope. **The published pack's own
+schema still uses the single shared `otherLtRate` model** — but the runtime
+app's own `S.taxRules.cg` has since grown a richer per-class `classes` model
+(see the next paragraph), so "the app" and "the publishing schema" are no
+longer the same shape; don't conflate them.
+
+**Capital Gains per-class "other" rates + safe workbook edit write-back (done):** `cg.classes` now holds independent `ltMonths`/`ltRate` per asset class (`foreignUnlisted`/`debtPre2023`/`goldOther`/`sgb`/`realEstate`), migrated from the old shared fields by `normalizeTaxRules()` with per-key overrides preserved. Settings UI, workbook write-back, and the Capital Gains tab's bucket totals were all updated to use it. Sale events also now track `sheetRowId`/`sheetMatchKey` so reclassifying an event and re-merging updates the same workbook row instead of duplicating it (`cgQueueEdit`/`cgFindEditRow`). Covered by a unit migration test, a new golden-suite add→reclassify→merge-again round trip, and a divergent-per-class-rates fixture. Full writeup: `pechak-documentation.md` §7 item 14.
 
 Still open whenever Capacitor work does resume: launch blockers **#2 (Android document picker)** and **#4 (native storage migration)** from the assessment's list above, plus before any of it starts, Android Studio needs to be installed (SDK Platform 36+, matching build tools, an emulator image) — not yet done.
 
 ## Known limitations (accepted, not blockers)
 
 - **"Local-only" needs a precise privacy claim.** Per the assessment §5: local storage isn't an encrypted vault, Android system backup can copy app data off-device unless explicitly disabled, and price lookups reveal IP + ticker to third parties. Don't claim "nothing ever leaves the device" — see the assessment for the exact recommended wording.
-- **`sw.js`'s `networkFirst()`** only falls back to cache on a thrown fetch exception (genuine offline), not on a resolved-but-non-2xx response (e.g. a misconfigured host returning 404/500). Fine for the offline guarantee (real offline throws), but a gap if the server is ever up-but-broken.
+- ~~**`sw.js`'s `networkFirst()`** only falls back to cache on a thrown fetch exception...~~ **Resolved:** `networkFirst()` now also falls back to the cached copy on a resolved 5xx response, not just a thrown fetch exception, so an up-but-broken origin behaves the same as offline. (Deliberately left 4xx responses passed through as-is — a genuine 404 for a since-removed resource shouldn't silently resurrect stale cached content.)
 - **GitHub Pages web app and the future Capacitor app will not share storage automatically** — a one-time JSON-backup-based migration path is planned (assessment §3, "Migration from the website") but not built.
 
 ## What still needs testing/validation
 
-- **Real-device offline test.** The exit gate proved SW cache-interception and full precache coverage in a headless preview (confirmed the SW serves stale cached bytes even when the on-disk file changes — proof it never even asks the network for a cache-first hit), but couldn't do a literal airplane-mode test because the browser tool ties the tab's lifecycle to its own dev-server health check. **Do a real install → force-stop connectivity → relaunch test on an actual device before Play Store submission.**
-- **`manifest.json`'s `"id"` field** is currently the placeholder `/pechak/`. Confirm the final deployed path (custom domain vs. GitHub project-Pages path) and update it — a mismatched `id` makes Play/PWA treat an update as a different app.
+- **Real-device offline test, real FSA picker test, real-device storage-failure test.** These 3 remaining P1 items are real-device-only manual checks and are tracked as explicit manual release gates in `MANUAL-RELEASE-GATES.md` (not claimed as passing via automation) — see that file for what automation already verified vs. what's still open.
+- ~~**`manifest.json`'s `"id"` field** is currently the placeholder `/pechak/`. Confirm the final deployed path...~~ **Resolved:** confirmed deployed path is `https://paritoshp1412.github.io/pechak/`, so the existing `"id": "/pechak/"` is already correct — no change needed.
 - Everything in the assessment's own validation asks: TWA Digital Asset Links (`/.well-known/assetlinks.json`) if a TWA is ever built instead; Android WebView compatibility for `CompressionStream`/`DecompressionStream` (used for workbook ZIP processing) once Capacitor is in play; storage-schema migration correctness once native storage replaces `localStorage`.
-- `BASELINE.md` has its own open-questions list (exact scope of `tr_queue_v1`, whether empty vs. absent queue arrays are handled identically) — relevant once the native storage migration (`localStorage` → native) actually happens, since that's when every key in that baseline needs a 1:1 native equivalent.
+- `BASELINE.md` has its own open-questions list — relevant once the native storage migration (`localStorage` → native) actually happens, since that's when every key in that baseline needs a 1:1 native equivalent. (Its "empty vs. absent queue array" question is now resolved — see the file — no remaining ambiguity there.)
 - **Step 7's atomic-write/previous-known-good fallback** was only verified against hand-simulated corruption (flipping the `checksum` field directly in devtools), not a real interrupted-write scenario. The code path is identical either way, but worth keeping in mind if it's ever depended on as a real safety net.
 - **Step 8's auto-backup** was verified with `showSaveFilePicker` mocked (browser automation can't drive the real native file-picker dialog) — the enable/write/lapsed-permission/unsupported-browser logic is real, exercised code, but the actual native-picker interaction itself is unverified. Also: someone who never grants the one-time File System Access permission gets no silent auto-backup at all (by design) — their only safety net is the manual button prompted by the "Last full backup" row going stale.
 
@@ -125,6 +130,7 @@ Still open whenever Capacitor work does resume: launch blockers **#2 (Android do
 | Main app (single-file UI + logic, pre-Capacitor) | `index.html` |
 | Frozen production-browser regression suite | `tests/golden.mjs`, `tests/golden/baseline.json`, `tests/fixtures/populated-state.json` |
 | Tax-rule release operations | `tax-rules/README.md`, `scripts/tax-rules/`, `tests/fixtures/tax-goldens.json` |
+| Manual, real-device-only Play Store release gates | `MANUAL-RELEASE-GATES.md` |
 
 ## Working notes for whoever picks this up
 

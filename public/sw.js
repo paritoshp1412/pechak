@@ -71,13 +71,20 @@ async function cacheFirst(request) {
 }
 
 // Network-first: always try the network so updates show up immediately;
-// fall back to the last cached copy only when the network fails.
+// fall back to the last cached copy when the network fails outright (offline)
+// or comes back with a server error (5xx) -- a resolved-but-broken response is
+// not "fresh", it's the origin having a bad day, so cache is the better answer.
 async function networkFirst(request) {
   try {
     const res = await fetch(request);
     if (res.ok) {
       const cache = await caches.open(CACHE);
       cache.put(request, res.clone());
+      return res;
+    }
+    if (res.status >= 500) {
+      const cached = await caches.match(request);
+      if (cached) return cached;
     }
     return res;
   } catch (e) {

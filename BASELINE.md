@@ -44,4 +44,4 @@ Generated from the current Vite app in `index.html` and verified by the producti
 
 ## Open questions to verify against the running app (not fully resolved from static reading)
 
-- Confirm whether any of the queue arrays can legitimately be empty vs. absent, since `capLoad` defaults missing keys to `[]`/`{}` and the two are treated the same today.
+- ~~Confirm whether any of the queue arrays can legitimately be empty vs. absent...~~ **Resolved:** traced `capLoad` → `storageAdapter.getItem(key, fallback)` (`src/adapters/storageAdapter.js`): a missing key returns `null` from `localStorage.getItem`, which is falsy, so it returns `fallback` (`[]`/`{}`); a present-but-empty-array value (`"[]"`) is a truthy string, parses to `[]`, and returns the identical shape. There is no third distinguishable state and no code path anywhere treats "key never existed" differently from "key holds an empty array" — both are, by construction, the same value once loaded. Not a bug; nothing to fix.

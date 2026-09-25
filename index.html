@@ -1182,11 +1182,9 @@ async function importWB(buf){
      FY... no formula changes needed" per the sheet's own A2), so rows are read by
      their known position rather than by header search, same trust level the sheet's
      own defined names (NR_Lo, SC_Over, etc.) already place in this layout.
-     Deliberately NOT imported here: the 7-class Capital Gains matrix (CG_Class rows
-     34-40) -- taxRules().cg is a small hardcoded object (equityLtMonths/otherLtMonths/
-     sgbLtMonths/...), not a generic per-class table, and mapping the sheet's richer
-     matrix (incl. the Section 50AA acquisition-date debt-fund split) onto it needs a
-     real model decision, not a field copy -- see the Capital Gains import below. */
+     The Capital Gains matrix at rows 34-40 is imported into class-specific rules;
+     normalizeTaxRules() migrates older saved state that only has the legacy shared
+     other-asset fields. */
   const trs=sheetRows(wb,"tax rules");
   if(trs){
     const g=(r,c)=>{const row=trs[r-1]||[];return row[c];};
@@ -1236,6 +1234,18 @@ async function importWB(buf){
         t.fdTds=t.fdTds||JSON.parse(JSON.stringify(TAX_RULES_DEFAULT.fdTds));
         if(fdTdsNormal!=null)t.fdTds.threshold=fdTdsNormal;
         if(fdTdsSenior!=null)t.fdTds.seniorThreshold=fdTdsSenior;
+      }
+      normalizeTaxRules(t,TAX_RULES_DEFAULT);
+      const cgRows={foreignUnlisted:35,debtPre2023:37,goldOther:38,sgb:39,realEstate:40};
+      const eqMonths=num(g(34,COL.B)),eqStRate=num(g(34,COL.C)),eqLtRate=num(g(34,COL.E)),eqExempt=num(g(34,COL.F));
+      if(eqMonths!=null)t.cg.equityLtMonths=eqMonths;
+      if(eqStRate!=null)t.cg.stcgRate=eqStRate;
+      if(eqLtRate!=null)t.cg.ltcgRate=eqLtRate;
+      if(eqExempt!=null)t.cg.ltcgExempt=eqExempt;
+      for(const [key,row] of Object.entries(cgRows)){
+        const ltMonths=num(g(row,COL.B)),ltRate=num(g(row,COL.E));
+        if(ltMonths!=null)t.cg.classes[key].ltMonths=ltMonths;
+        if(ltRate!=null)t.cg.classes[key].ltRate=ltRate;
       }
     }
   }
@@ -1315,7 +1325,7 @@ async function importWB(buf){
     const cgh=headerIdx(cgSheet,["asset class","sale date"]);
     if(cgh>=0){
       const cm=colMap(cgSheet[cgh]);
-      const cc={cls:pick(cm,"asset class"),nm:pick(cm,"name"),acct:pick(cm,"account"),acq:pick(cm,"acq date"),qty:pick(cm,"qty"),cost:pick(cm,"cost basis"),sale:pick(cm,"sale date"),proc:pick(cm,"proceeds")};
+      const cc={id:pick(cm,"id"),cls:pick(cm,"asset class"),nm:pick(cm,"name"),acct:pick(cm,"account"),acq:pick(cm,"acq date"),qty:pick(cm,"qty"),cost:pick(cm,"cost basis"),sale:pick(cm,"sale date"),proc:pick(cm,"proceeds")};
       const imported=[];
       for(let i=cgh+1;i<cgSheet.length;i++){
         const r=cgSheet[i]||[];
@@ -1323,15 +1333,21 @@ async function importWB(buf){
         if(!cls)break; // blank Asset Class = end of the real rows (the TOTAL row has none)
         const saleDate=toYMD(r[cc.sale]),proceeds=num(r[cc.proc]);
         if(!saleDate||proceeds==null)continue; // not a completed sale yet -- mirrors the sheet's own ID formula ("blank until Proceeds is filled in")
-        imported.push({id:capUid(),holdName:clean(r[cc.nm])||null,acct:clean(r[cc.acct])||null,
+        imported.push({id:capUid(),sheetRowId:clean(r[cc.id])||`CG${i-cgh}`,holdName:clean(r[cc.nm])||null,acct:clean(r[cc.acct])||null,
           sheetClass:cls,qty:num(r[cc.qty]),costBasis:num(r[cc.cost]),
           acqDate:toYMD(r[cc.acq]),saleDate,proceeds,source:"sheet-import"});
       }
       if(imported.length){
         const existing=S.capGainsEvents||[];
         const dupeKey=e=>`${e.holdName}|${e.acct}|${e.saleDate}|${Math.round((e.proceeds||0)*100)}`;
-        const existingKeys=new Set(existing.map(dupeKey));
-        const fresh=imported.filter(e=>!existingKeys.has(dupeKey(e)));
+        const existingByKey=new Map(existing.map(e=>[dupeKey(e),e]));
+        const fresh=imported.filter(e=>{
+          const current=existingByKey.get(dupeKey(e));
+          if(!current)return true;
+          current.sheetRowId=e.sheetRowId;
+          current.sheetMatchKey={holdName:e.holdName,acct:e.acct,saleDate:e.saleDate,proceeds:e.proceeds};
+          return false;
+        });
         S.capGainsEvents=[...existing,...fresh];
       }
     }
@@ -2707,8 +2723,8 @@ function payQueue(action,data){
   PAY_QUEUE.push({id:capUid(),action,createdAt:new Date().toISOString(),...data});
   payPersistQueue();
 }
-/* cgQueue: queues a candidate row for the Capital Gains sheet. Only ever
-   "addEvent", and only ever a pointer ({eventId}), NOT a snapshot of the
+/* cgQueue: queues a candidate row for the Capital Gains sheet. Adds store only
+   a pointer ({eventId}), NOT a snapshot of the
    event's fields at queue time -- consumeLotsFifo() queues this the moment a
    real Sell creates the event, which for a Mutual Fund/Index Fund/ELSS type is
    usually BEFORE mfCategory has been set (that happens later, via the inline
@@ -2719,6 +2735,23 @@ function payQueue(action,data){
    at all -- sheet-imported rows never pass through consumeLotsFifo(). */
 function cgQueue(eventId){
   CG_QUEUE.push({id:capUid(),action:"addEvent",eventId,createdAt:new Date().toISOString()});
+  cgPersistQueue();
+}
+function cgQueueEdit(event,matchKey){
+  const pendingAdd=CG_QUEUE.some(q=>q.action==="addEvent"&&q.eventId===event.id);
+  if(pendingAdd)return;
+  const existing=CG_QUEUE.find(q=>q.action==="editEvent"&&q.eventId===event.id);
+  const identity=matchKey||event.sheetMatchKey||{
+    holdName:event.holdName||null,acct:event.acct||null,saleDate:event.saleDate||null,proceeds:event.proceeds
+  };
+  if(existing){
+    existing.sheetRowId ||= event.sheetRowId||null;
+    existing.matchKey ||= identity;
+    existing.createdAt=new Date().toISOString();
+  }else{
+    CG_QUEUE.push({id:capUid(),action:"editEvent",eventId:event.id,sheetRowId:event.sheetRowId||null,
+      matchKey:identity,createdAt:new Date().toISOString()});
+  }
   cgPersistQueue();
 }
 /* trQueue: queues one full Tax Rules save. Unlike every other queue, this is a
@@ -3440,8 +3473,9 @@ function renderCapQueue(){
   PAY_QUEUE.forEach(x=>items.push({createdAt:x.createdAt,html:`<div class="cap-row"><div class="l">
     <div class="kind">Tax Payment \u00b7 ${PAY_LABELS[x.action]||x.action}</div>
     <div class="meta">${esc((x.type||(x.matchKey&&x.matchKey.type))||"")}${x.amount!=null?` \u00b7 ${capFmtN(x.amount)}`:(x.matchKey&&x.matchKey.amount!=null?` \u00b7 ${capFmtN(x.matchKey.amount)}`:"")}</div></div></div>`}));
+  const CG_LABELS={addEvent:"Add entry",editEvent:"Update classification"};
   CG_QUEUE.forEach(x=>items.push({createdAt:x.createdAt,html:`<div class="cap-row"><div class="l">
-    <div class="kind">Capital Gains \u00b7 Add entry</div>
+    <div class="kind">Capital Gains \u00b7 ${CG_LABELS[x.action]||x.action}</div>
     <div class="meta">event ${esc(x.eventId||"")}</div></div></div>`}));
   if(TR_QUEUE.length)items.push({createdAt:TR_QUEUE[TR_QUEUE.length-1].createdAt,html:`<div class="cap-row"><div class="l">
     <div class="kind">Tax Rules \u00b7 Save settings</div>
@@ -4399,9 +4433,10 @@ function cgFindBlankRow(zip,sheetXml,row0,rowN){
 // Capital Gains import already dedupes on, so a row written back by this
 // function and later re-imported (or vice versa) is recognized as the same sale
 // either direction, not doubled.
-function cgFindRowByKey(zip,sheetXml,row0,rowN,holdName,acct,saleDate,proceeds){
+function cgFindRowsByKey(zip,sheetXml,row0,rowN,holdName,acct,saleDate,proceeds){
   const wantSerial=saleDate?toExcelSerial(saleDate):null;
   const wantAmt=Math.round((proceeds||0)*100);
+  const matches=[];
   for(let r=row0;r<=rowN;r++){
     if(catCellText(zip,sheetXml,`D${r}`)!==(holdName||null))continue;
     if(catCellText(zip,sheetXml,`E${r}`)!==(acct||null))continue;
@@ -4409,9 +4444,24 @@ function cgFindRowByKey(zip,sheetXml,row0,rowN,holdName,acct,saleDate,proceeds){
     if(wantSerial!=null&&+dCell!==wantSerial)continue;
     const jCell=catCellText(zip,sheetXml,`J${r}`);
     if(jCell==null||Math.round(+jCell*100)!==wantAmt)continue;
-    return r;
+    matches.push(r);
   }
-  return null;
+  return matches;
+}
+function cgFindEditRow(zip,sheetXml,row0,rowN,q){
+  const key=q.matchKey||{};
+  const matches=cgFindRowsByKey(zip,sheetXml,row0,rowN,key.holdName,key.acct,key.saleDate,key.proceeds);
+  if(q.sheetRowId){
+    const match=/^CG(\d+)$/.exec(q.sheetRowId);
+    const row=match?+match[1]+4:null;
+    if(row>=row0&&row<=rowN&&matches.includes(row))return row;
+  }
+  if(matches.length===1)return matches[0];
+  if(matches.length>1)throw new Error(`Capital Gains sheet has ${matches.length} rows matching this sale; classification was not changed.`);
+  throw new Error(`Capital Gains sheet no longer has the original sale row; classification was not changed.`);
+}
+function cgWorkbookAssetClass(e){
+  return e.sheetClass||cgAssetClassForEvent(e);
 }
 function cgApplyQueue(zip,sheetXml,wbXml,queue){
   const applied=[],failed=[],log=[];
@@ -4420,13 +4470,31 @@ function cgApplyQueue(zip,sheetXml,wbXml,queue){
     try{
       const e=(S.capGainsEvents||[]).find(x=>x.id===q.eventId);
       if(!e){log.push(`Event ${q.eventId} no longer exists -- skipped.`);applied.push(q.id);continue;}
-      const assetClass=cgAssetClassForEvent(e);
+      const assetClass=cgWorkbookAssetClass(e);
       if(!assetClass)throw new Error(`"${e.holdName||e.type}" (sold ${e.saleDate}) isn't classified yet -- set its fund category on the Capital Gains tab, then merge again.`);
+      const rowN=cgCurrentRowN(zip,sheetXml);
+      if(q.action==="editEvent"){
+        const row=cgFindEditRow(zip,sheetXml,row0,rowN,q);
+        sheetXml=capSetCell(sheetXml,"B",row,"str",assetClass);
+        e.sheetRowId=`CG${row-4}`;
+        e.sheetMatchKey={holdName:e.holdName||null,acct:e.acct||null,saleDate:e.saleDate||null,proceeds:e.proceeds};
+        log.push(`Updated classification for "${e.holdName||e.type}" (sold ${e.saleDate}) at row ${row}`);
+        applied.push(q.id);
+        continue;
+      }
+      if(q.action!=="addEvent")throw new Error(`Capital Gains sheet: unknown queue action "${q.action}".`);
       const inr=cgEventInrAmounts(e);
       if(!inr)throw new Error(`"${e.holdName||e.type}" (sold ${e.saleDate}) needs an SBI TT/TTBR rate before it can be written -- add it in Settings \u2192 Tax Rules, then merge again.`);
-      const rowN=cgCurrentRowN(zip,sheetXml);
-      const dupRow=cgFindRowByKey(zip,sheetXml,row0,rowN,e.holdName,e.acct,e.saleDate,inr.proceeds);
-      if(dupRow!=null){log.push(`"${e.holdName||e.type}" (sold ${e.saleDate}) already in the sheet at row ${dupRow} -- skipped, not duplicated.`);applied.push(q.id);continue;}
+      const duplicateRows=cgFindRowsByKey(zip,sheetXml,row0,rowN,e.holdName,e.acct,e.saleDate,inr.proceeds);
+      if(duplicateRows.length>1)throw new Error(`Capital Gains sheet has ${duplicateRows.length} rows matching "${e.holdName||e.type}" (sold ${e.saleDate}); nothing was changed.`);
+      if(duplicateRows.length===1){
+        const row=duplicateRows[0];
+        sheetXml=capSetCell(sheetXml,"B",row,"str",assetClass);
+        e.sheetRowId=`CG${row-4}`;
+        e.sheetMatchKey={holdName:e.holdName||null,acct:e.acct||null,saleDate:e.saleDate||null,proceeds:inr.proceeds};
+        log.push(`"${e.holdName||e.type}" (sold ${e.saleDate}) already exists at row ${row}; classification was refreshed.`);
+        applied.push(q.id);continue;
+      }
       const row=cgFindBlankRow(zip,sheetXml,row0,rowN);
       if(row==null)throw new Error(`Capital Gains buffer is full (${rowN-row0+1} slots used) -- ask Claude to extend it.`);
       sheetXml=capSetCell(sheetXml,"B",row,"str",assetClass);
@@ -4438,6 +4506,8 @@ function cgApplyQueue(zip,sheetXml,wbXml,queue){
       sheetXml=capSetCell(sheetXml,"H",row,"num",inr.costBasis);
       sheetXml=capSetCell(sheetXml,"I",row,e.saleDate?"num":"blank",e.saleDate?toExcelSerial(e.saleDate):null);
       sheetXml=capSetCell(sheetXml,"J",row,"num",inr.proceeds);
+      e.sheetRowId=`CG${row-4}`;
+      e.sheetMatchKey={holdName:e.holdName||null,acct:e.acct||null,saleDate:e.saleDate||null,proceeds:inr.proceeds};
       log.push(`Added "${e.holdName||e.type}" (sold ${e.saleDate}) at row ${row}`);
       applied.push(q.id);
     }catch(err){failed.push({id:q.id,error:err.message||String(err)});}
@@ -4485,27 +4555,24 @@ function trApplyQueue(zip,sheetXml,wbXml,queue){
         sheetXml=capSetCell(sheetXml,"B",r,"num",band[2]);
       });
       sheetXml=capSetCell(sheetXml,"B",49,"num",t.surcharge.capOnSpecialIncome);
-      // cg sub-object -> the CG_Class matrix (rows 34-40). The app's flat model
-      // has one field, not one per row: equityLtMonths/stcgRate/ltcgRate/
-      // ltcgExempt map ONLY to Listed Equity (34); otherLtMonths/otherLtRate are
-      // a single value the app applies to every "other"-bucket class alike
-      // (Foreign/Unlisted-35, Debt pre-2023-37, Gold-38, Real Estate-40) rather
-      // than tracking each separately, so saving here writes that one value to
-      // all four; SGB (39) gets its own LT-months field but shares the same
-      // "other" flat rate, same as it already does when read. Debt post-2023
-      // (36) is never touched -- Sec 50AA means it's always slab regardless of
+      // cg sub-object -> the CG_Class matrix (rows 34-40). equityLtMonths/
+      // stcgRate/ltcgRate/ltcgExempt map ONLY to Listed Equity (34); the other
+      // five classes (Foreign/Unlisted-35, Debt pre-2023-37, Gold-38, SGB-39,
+      // Real Estate-40) each get their own LT-months/LT-rate from t.cg.classes,
+      // same row map importWB() uses to read this matrix. Debt post-2023 (36)
+      // is never touched -- Sec 50AA means it's always slab regardless of
       // holding period, and nothing in the app's model corresponds to that row.
       if(t.cg){
         sheetXml=capSetCell(sheetXml,"B",34,"num",t.cg.equityLtMonths);
         sheetXml=capSetCell(sheetXml,"C",34,"num",t.cg.stcgRate);
         sheetXml=capSetCell(sheetXml,"E",34,"num",t.cg.ltcgRate);
         sheetXml=capSetCell(sheetXml,"F",34,"num",t.cg.ltcgExempt);
-        [35,37,38,40].forEach(r=>{
-          sheetXml=capSetCell(sheetXml,"B",r,"num",t.cg.otherLtMonths);
-          sheetXml=capSetCell(sheetXml,"E",r,"num",t.cg.otherLtRate);
-        });
-        sheetXml=capSetCell(sheetXml,"B",39,"num",t.cg.sgbLtMonths);
-        sheetXml=capSetCell(sheetXml,"E",39,"num",t.cg.otherLtRate);
+        const cgRows={foreignUnlisted:35,debtPre2023:37,goldOther:38,sgb:39,realEstate:40};
+        for(const [key,r] of Object.entries(cgRows)){
+          const rule=cgClassRule(t.cg,key);
+          sheetXml=capSetCell(sheetXml,"B",r,"num",rule.ltMonths);
+          sheetXml=capSetCell(sheetXml,"E",r,"num",rule.ltRate);
+        }
       }
       log.push("Saved Tax Rules settings");
       applied.push(q.id);
@@ -6253,15 +6320,29 @@ function taxIncomeHeads(){
        naming the exact currency+date so it's a one-line fix (Settings -> Tax Rules
        -> SBI TT/TTBR rate table), not a re-run of Phase 3b's research. */
 const CG_BUCKETS={SLAB:"slab",EQUITY:"equity",OTHER:"other"};
+// Labels for the 5 "other"-bucket classes the CG_Class matrix (rows 34-40)
+// tracks separately -- used both in the Tax Rules settings form and in the
+// Capital Gains tab's per-class breakdown, so the two stay in sync by
+// sharing this one map instead of duplicating the wording.
+const CG_CLASS_LABELS={
+  foreignUnlisted:"Foreign/unlisted shares (RSU/ESPP)",
+  debtPre2023:"Debt fund (bought pre-1Apr23)",
+  goldOther:"Gold / other",
+  sgb:"SGB",
+  realEstate:"Real estate"
+};
+function cgClassRule(cg,key){
+  return (cg.classes&&cg.classes[key])||{ltMonths:key==="sgb"?cg.sgbLtMonths:cg.otherLtMonths,ltRate:cg.otherLtRate};
+}
 function classifyCGAsset(type,cls,cg,mfCategory,acqDate){
   if(cls==="Equity"&&(type==="Stock"||type==="ETF"))return{bucket:CG_BUCKETS.EQUITY,ltMonths:cg.equityLtMonths,label:"Listed equity"};
   /* RSU/ESPP: the workbook is explicit these belong in the "other" bucket (24mo LT,
      no exemption) -- same rule as gold/SGB below -- once their gain is actually
      known in \u20b9, which needsFxResolution below handles before this bucket/
      ltMonths pairing is trusted. */
-  if(type==="RSU"||type==="ESPP")return{bucket:CG_BUCKETS.OTHER,ltMonths:cg.otherLtMonths,label:"Foreign shares (RSU/ESPP)",needsFxResolution:true};
-  if(type==="SGB")return{bucket:CG_BUCKETS.OTHER,ltMonths:cg.sgbLtMonths,label:"SGB"};
-  if(cls==="Gold")return{bucket:CG_BUCKETS.OTHER,ltMonths:cg.otherLtMonths,label:"Gold"};
+  if(type==="RSU"||type==="ESPP")return{bucket:CG_BUCKETS.OTHER,...cgClassRule(cg,"foreignUnlisted"),ruleKey:"foreignUnlisted",label:"Foreign shares (RSU/ESPP)",needsFxResolution:true};
+  if(type==="SGB")return{bucket:CG_BUCKETS.OTHER,...cgClassRule(cg,"sgb"),ruleKey:"sgb",label:"SGB"};
+  if(cls==="Gold")return{bucket:CG_BUCKETS.OTHER,...cgClassRule(cg,"goldOther"),ruleKey:"goldOther",label:"Gold"};
   /* Mutual Fund / Index Fund / ELSS: never inferred from `type` alone (a fund's
      equity allocation is a portfolio fact, not a name) -- classified by
      mfCategory, snapshotted onto the event at sale time from the holding's own
@@ -6279,10 +6360,10 @@ function classifyCGAsset(type,cls,cg,mfCategory,acqDate){
   if(MF_TYPES.includes(type)){
     if(mfCategory==="Equity")return{bucket:CG_BUCKETS.EQUITY,ltMonths:cg.equityLtMonths,label:"Equity-oriented fund"};
     if(mfCategory==="Debt"){
-      if(acqDate&&acqDate<"2023-04-01")return{bucket:CG_BUCKETS.OTHER,ltMonths:cg.otherLtMonths,label:"Debt fund (bought pre-1Apr23)"};
+      if(acqDate&&acqDate<"2023-04-01")return{bucket:CG_BUCKETS.OTHER,...cgClassRule(cg,"debtPre2023"),ruleKey:"debtPre2023",label:"Debt fund (bought pre-1Apr23)"};
       return{bucket:CG_BUCKETS.OTHER,ltMonths:Infinity,label:"Debt/specified fund"};
     }
-    if(mfCategory==="Other")return{bucket:CG_BUCKETS.OTHER,ltMonths:cg.otherLtMonths,label:"Other/hybrid fund"};
+    if(mfCategory==="Other")return{bucket:CG_BUCKETS.OTHER,...cgClassRule(cg,"goldOther"),ruleKey:"goldOther",label:"Other/hybrid fund"};
     return{bucket:"unclassified-type",ltMonths:null,label:`${type} (no fund category set)`,needsMfCategory:true};
   }
   return{bucket:"unclassified-type",ltMonths:null,label:type||"(no type)"};
@@ -6299,11 +6380,11 @@ function classifyCGAsset(type,cls,cg,mfCategory,acqDate){
 function classifyFromSheetClass(sheetClass,cg,acqDate){
   if(sheetClass==="Listed Equity/Equity MF")return{bucket:CG_BUCKETS.EQUITY,ltMonths:cg.equityLtMonths,label:"Listed equity/equity fund"};
   if(sheetClass==="Debt MF (bought >=1Apr23)")return{bucket:CG_BUCKETS.OTHER,ltMonths:Infinity,label:"Debt/specified fund (post-1Apr23)"};
-  if(sheetClass==="Debt MF (bought <1Apr23)")return{bucket:CG_BUCKETS.OTHER,ltMonths:cg.otherLtMonths,label:"Debt fund (pre-1Apr23)"};
-  if(sheetClass==="Foreign/Unlisted Shares")return{bucket:CG_BUCKETS.OTHER,ltMonths:cg.otherLtMonths,label:"Foreign/unlisted shares"};
-  if(sheetClass==="Gold / Gold MF / other")return{bucket:CG_BUCKETS.OTHER,ltMonths:cg.otherLtMonths,label:"Gold"};
-  if(sheetClass==="SGB (secondary/premature)")return{bucket:CG_BUCKETS.OTHER,ltMonths:cg.sgbLtMonths,label:"SGB"};
-  if(sheetClass==="Real Estate")return{bucket:CG_BUCKETS.OTHER,ltMonths:cg.otherLtMonths,label:"Real estate"};
+  if(sheetClass==="Debt MF (bought <1Apr23)")return{bucket:CG_BUCKETS.OTHER,...cgClassRule(cg,"debtPre2023"),ruleKey:"debtPre2023",label:"Debt fund (pre-1Apr23)"};
+  if(sheetClass==="Foreign/Unlisted Shares")return{bucket:CG_BUCKETS.OTHER,...cgClassRule(cg,"foreignUnlisted"),ruleKey:"foreignUnlisted",label:"Foreign/unlisted shares"};
+  if(sheetClass==="Gold / Gold MF / other")return{bucket:CG_BUCKETS.OTHER,...cgClassRule(cg,"goldOther"),ruleKey:"goldOther",label:"Gold"};
+  if(sheetClass==="SGB (secondary/premature)")return{bucket:CG_BUCKETS.OTHER,...cgClassRule(cg,"sgb"),ruleKey:"sgb",label:"SGB"};
+  if(sheetClass==="Real Estate")return{bucket:CG_BUCKETS.OTHER,...cgClassRule(cg,"realEstate"),ruleKey:"realEstate",label:"Real estate"};
   return{bucket:"unclassified-type",ltMonths:null,label:`${sheetClass} (imported, unmapped)`};
 }
 function monthsBetween(d1,d2){
@@ -6384,7 +6465,7 @@ function capGainsBreakdown(asOfDate){
     if(idsAssigned)persist();
   }
   const fyEvents=(S.capGainsEvents||[]).filter(e=>e.saleDate>=tr.fyStart&&e.saleDate<=restrictTo);
-  const buckets={slab:0,stcg111A:0,ltcg112A:0,ltcgOther:0};
+  const buckets={slab:0,stcg111A:0,ltcg112A:0,ltcgOther:0},otherByClass={};
   const detail=[],excluded=[];
   fyEvents.forEach(e=>{
     if(e.source==="unclassified"){excluded.push({...e,reason:"drawn from undated/uncosted units \u2014 import historical lots or correct acquisition dates (Phase 0 gap)"});return;}
@@ -6412,13 +6493,18 @@ function capGainsBreakdown(asOfDate){
     const row={...e,gain,heldMonths,isLT,bucket:cl.bucket,assetLabel:cl.label};
     detail.push(row);
     if(cl.bucket===CG_BUCKETS.EQUITY){if(isLT)buckets.ltcg112A+=gain;else buckets.stcg111A+=gain;}
-    else{if(isLT)buckets.ltcgOther+=gain;else buckets.slab+=gain;}
+    else if(isLT){
+      buckets.ltcgOther+=gain;
+      const key=cl.ruleKey||"legacy";
+      const current=otherByClass[key]||{gain:0,rate:cl.ltRate??cg.otherLtRate};
+      current.gain+=gain;otherByClass[key]=current;
+    }else buckets.slab+=gain;
   });
   const ltcg112ANet=Math.max(0,buckets.ltcg112A-cg.ltcgExempt);
   const tax111A=Math.max(0,buckets.stcg111A)*cg.stcgRate;
   const tax112A=ltcg112ANet*cg.ltcgRate;
-  const taxOther=Math.max(0,buckets.ltcgOther)*cg.otherLtRate;
-  return{buckets,ltcg112ANet,tax111A,tax112A,taxOther,totalCgTax:tax111A+tax112A+taxOther,detail,excluded,cg};
+  const taxOther=Object.values(otherByClass).reduce((sum,row)=>sum+Math.max(0,row.gain)*row.rate,0);
+  return{buckets,otherByClass,ltcg112ANet,tax111A,tax112A,taxOther,totalCgTax:tax111A+tax112A+taxOther,detail,excluded,cg};
 }
 function renderTax(){
   const tr=taxRules();
@@ -6495,7 +6581,7 @@ function renderTax(){
     <table class="stmt"><thead><tr><th></th><th class="n">Taxable gain</th><th class="n">Rate</th></tr></thead><tbody>
       ${cgRow("STCG \u2014 listed equity (111A)",cg.buckets.stcg111A,fmtP(cg.cg.stcgRate))}
       ${cgRow(`LTCG \u2014 listed equity (112A), net of ${fmtN(cg.cg.ltcgExempt)} exemption`,cg.ltcg112ANet,fmtP(cg.cg.ltcgRate))}
-      ${cgRow("LTCG \u2014 other assets (gold, SGB, etc.)",cg.buckets.ltcgOther,fmtP(cg.cg.otherLtRate))}
+      ${cgRow("LTCG \u2014 other assets (gold, SGB, etc.)",cg.buckets.ltcgOther,"class-specific rates")}
       ${row("Total capital gains tax (both regimes)",cg.totalCgTax,cg.totalCgTax).replace('<tr>','<tr class="tot-row">')}
     </tbody></table>
     <div class="muted" style="font-size:11.5px;margin-top:8px">Not eligible for 87A rebate, per the workbook. ${cg.excluded.length?`${cg.excluded.length} sale event${cg.excluded.length===1?"":"s"} excluded from these totals \u2014 see the <b>Capital Gains</b> tab for why.`:"Full detail and any excluded events are on the <b>Capital Gains</b> tab."}</div>
@@ -6663,7 +6749,25 @@ function mfCatSelectHtml(row){
 function setEventMfCategory(id,val){
   const e=(S.capGainsEvents||[]).find(x=>x.id===id);
   if(!e)return;
+  const matchKey=e.sheetMatchKey||{holdName:e.holdName||null,acct:e.acct||null,saleDate:e.saleDate||null,proceeds:e.proceeds};
   e.mfCategory=val||null;
+  if(e.sheetRowId||e.sheetMatchKey)cgQueueEdit(e,matchKey);
+  persist();
+  if(S.loaded){M=compute();renderTax();renderCapGains();}
+}
+const CG_SHEET_CLASSES=["Listed Equity/Equity MF","Foreign/Unlisted Shares","Debt MF (bought >=1Apr23)",
+  "Debt MF (bought <1Apr23)","Gold / Gold MF / other","SGB (secondary/premature)","Real Estate"];
+function sheetClassSelectHtml(row){
+  return `<select data-cgsheetclass="${esc(row.id)}" style="font-size:11px;padding:2px 4px;margin-left:6px">
+    ${CG_SHEET_CLASSES.map(value=>`<option value="${esc(value)}" ${value===row.sheetClass?"selected":""}>${esc(value)}</option>`).join("")}
+  </select>`;
+}
+function setEventSheetClass(id,value){
+  const e=(S.capGainsEvents||[]).find(x=>x.id===id);
+  if(!e||!CG_SHEET_CLASSES.includes(value))return;
+  const matchKey=e.sheetMatchKey||{holdName:e.holdName||null,acct:e.acct||null,saleDate:e.saleDate||null,proceeds:e.proceeds};
+  e.sheetClass=value;
+  cgQueueEdit(e,matchKey);
   persist();
   if(S.loaded){M=compute();renderTax();renderCapGains();}
 }
@@ -6673,7 +6777,7 @@ function renderCapGains(){
   const fmtGain=g=>`<span style="color:${g<0?"var(--neg)":"inherit"}">${fmtN(g)}</span>`;
   const detailRows=cg.detail.length?cg.detail.map(e=>`<tr>
       <td>${esc(e.holdName||"")}</td>
-      <td class="muted">${esc(e.assetLabel)}${MF_TYPES.includes(e.type)?mfCatSelectHtml(e):""}</td>
+      <td class="muted">${esc(e.assetLabel)}${e.sheetClass?sheetClassSelectHtml(e):(MF_TYPES.includes(e.type)?mfCatSelectHtml(e):"")}</td>
       <td class="n">${e.qty}</td>
       <td class="n">${esc(e.acqDate||"")}</td>
       <td class="n">${esc(e.saleDate||"")}</td>
@@ -6685,7 +6789,7 @@ function renderCapGains(){
       <td>${esc(e.holdName||"")}</td>
       <td class="n">${esc(e.saleDate||"")}</td>
       <td class="n">${e.qty}</td>
-      <td class="muted">${esc(e.reason)}${MF_TYPES.includes(e.type)?mfCatSelectHtml(e):""}</td>
+      <td class="muted">${esc(e.reason)}${e.sheetClass?sheetClassSelectHtml(e):(MF_TYPES.includes(e.type)?mfCatSelectHtml(e):"")}</td>
     </tr>`).join(""):`<tr><td colspan="4" class="muted" style="text-align:center;padding:16px">Nothing excluded \u2014 every sale event this FY was classified and taxed above.</td></tr>`;
   $("#v-capgains").innerHTML=`
   <div class="card" style="margin-bottom:14px">
@@ -6698,13 +6802,14 @@ function renderCapGains(){
     ${kpi("Total capital gains tax",fmtN(cg.totalCgTax),"Step 4, not eligible for 87A rebate")}
     ${kpi("STCG \u2014 111A (equity)",fmtN(cg.buckets.stcg111A),fmtP(cg.cg.stcgRate)+" flat")}
     ${kpi("LTCG \u2014 112A (equity)",fmtN(cg.ltcg112ANet),`net of ${fmtN(cg.cg.ltcgExempt)}, ${fmtP(cg.cg.ltcgRate)} flat`)}
-    ${kpi("LTCG \u2014 other assets",fmtN(cg.buckets.ltcgOther),fmtP(cg.cg.otherLtRate)+" flat, no exemption")}
+    ${kpi("LTCG \u2014 other assets",fmtN(cg.buckets.ltcgOther),"class-specific rates, no exemption")}
   </div>
   <div class="card" style="margin-bottom:14px"><h3>Bucket totals</h3><table class="stmt"><thead><tr><th></th><th class="n">Net gain</th><th class="n">Tax</th></tr></thead><tbody>
     <tr><td>@ slab (folds into Step 1 income)</td><td class="n">${fmtGain(cg.buckets.slab)}</td><td class="n muted">taxed at slab, in Step 3</td></tr>
     <tr><td>STCG 111A \u2014 listed equity</td><td class="n">${fmtGain(cg.buckets.stcg111A)}</td><td class="n">${fmtN(cg.tax111A)}</td></tr>
     <tr><td>LTCG 112A \u2014 listed equity (net of exemption)</td><td class="n">${fmtGain(cg.ltcg112ANet)}</td><td class="n">${fmtN(cg.tax112A)}</td></tr>
     <tr><td>LTCG \u2014 other assets</td><td class="n">${fmtGain(cg.buckets.ltcgOther)}</td><td class="n">${fmtN(cg.taxOther)}</td></tr>
+    ${Object.entries(cg.otherByClass).map(([key,row])=>`<tr class="muted"><td>&#8618; ${esc(CG_CLASS_LABELS[key]||key)}</td><td class="n">${fmtGain(row.gain)}</td><td class="n">${fmtN(Math.max(0,row.gain)*row.rate)} <span class="muted">(${fmtP(row.rate)})</span></td></tr>`).join("")}
     <tr class="tot-row"><td>Total (111A + 112A + other)</td><td class="n"></td><td class="n">${fmtN(cg.totalCgTax)}</td></tr>
   </tbody></table>
     <div class="muted" style="font-size:11.5px;margin-top:8px">A net loss within a bucket is shown as negative but doesn't reduce tax elsewhere or carry forward to next year (matching the workbook \u2014 multi-year loss carry-forward isn't modeled).</div>
@@ -6718,6 +6823,7 @@ function renderCapGains(){
     <div style="overflow-x:auto"><table class="stmt"><thead><tr><th>Holding</th><th class="n">Sold</th><th class="n">Qty</th><th>Why it's excluded</th></tr></thead><tbody>${excludedRows}</tbody></table></div>
   </div>`;
   $$("#v-capgains [data-mfcat]").forEach(sel=>sel.onchange=()=>setEventMfCategory(sel.dataset.mfcat,sel.value));
+  $$("#v-capgains [data-cgsheetclass]").forEach(sel=>sel.onchange=()=>setEventSheetClass(sel.dataset.cgsheetclass,sel.value));
 }
 
 /* ===== DEDUCTIONS VIEW (Tax group, Phase 2) =====
@@ -6944,16 +7050,22 @@ function renderTaxRulesView(){
     </div>
   </div>
   <div class="card" style="margin-bottom:14px"><h3>Capital gains matrix (Phase 3)</h3>
-    <div class="muted" style="font-size:11.5px;margin-bottom:10px">Two categories, matching the workbook: listed equity (111A/112A) and everything else this app can classify (gold, SGB \u2014 see the Capital Gains tab for what's excluded and why).</div>
+    <div class="muted" style="font-size:11.5px;margin-bottom:10px">Listed equity (111A/112A) plus five "other"-bucket classes, each with its own LT holding period and rate \u2014 matching the workbook's CG_Class matrix (rows 34-40; Debt fund bought &gt;=1Apr23 is always short-term/slab and has no LT rate to set).</div>
     <div class="form" style="grid-template-columns:1fr 1fr">
       <div class="field"><label>Equity: LT holding period (months)</label><input class="mono" id="tr_cg_eqmonths" type="number" value="${tr.cg.equityLtMonths}"></div>
       <div class="field"><label>Equity: STCG rate (111A)</label><input class="mono" id="tr_cg_stcg" type="number" step="0.01" value="${tr.cg.stcgRate}"></div>
       <div class="field"><label>Equity: LTCG rate (112A)</label><input class="mono" id="tr_cg_ltcg" type="number" step="0.01" value="${tr.cg.ltcgRate}"></div>
       <div class="field"><label>Equity: LTCG exemption (&#8377;/yr, pooled)</label><input class="mono" id="tr_cg_exempt" type="number" value="${tr.cg.ltcgExempt}"></div>
-      <div class="field"><label>Other assets: LT holding period (months)</label><input class="mono" id="tr_cg_othmonths" type="number" value="${tr.cg.otherLtMonths}"></div>
-      <div class="field"><label>SGB: LT holding period (months)</label><input class="mono" id="tr_cg_sgbmonths" type="number" value="${tr.cg.sgbLtMonths}"></div>
-      <div class="field"><label>Other assets: LTCG rate (no exemption)</label><input class="mono" id="tr_cg_othrate" type="number" step="0.01" value="${tr.cg.otherLtRate}"></div>
     </div>
+    <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Other-bucket class</th><th class="n">LT holding period (months)</th><th class="n">LTCG rate (no exemption)</th></tr></thead><tbody>
+      ${Object.entries(CG_CLASS_LABELS).map(([key,label])=>{
+        const cls=tr.cg.classes[key]||{};
+        return `<tr><td>${esc(label)}</td>
+          <td class="n"><input class="mono" data-cgclass-months="${key}" type="number" style="width:90px" value="${cls.ltMonths}"></td>
+          <td class="n"><input class="mono" data-cgclass-rate="${key}" type="number" step="0.01" style="width:90px" value="${cls.ltRate}"></td>
+        </tr>`;
+      }).join("")}
+    </tbody></table></div>
     <div class="muted" style="font-size:11.5px;margin-top:8px">Short-term gains on "other assets" are taxed at slab rate, not a flat rate here \u2014 they flow into Step 1's normal income instead.</div>
   </div>
   <div class="card" style="margin-bottom:14px"><h3 style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">SBI TT/TTBR rate table (Phase 3b)
@@ -7010,6 +7122,13 @@ function renderTaxRulesView(){
   };
   $("#tr_save").onclick=()=>{
     rechainBands(trWorking.newSlabs);rechainBands(trWorking.oldSlabs);rechainBands(trWorking.surchargeSlabs);
+    const classes={};
+    for(const key of Object.keys(CG_CLASS_LABELS)){
+      classes[key]={
+        ltMonths:+$(`[data-cgclass-months="${key}"]`).value||0,
+        ltRate:+$(`[data-cgclass-rate="${key}"]`).value||0
+      };
+    }
     S.taxRules={
       fy:$("#tr_fy").value.trim(),ay:$("#tr_ay").value.trim(),
       fyStart:$("#tr_fystart").value,fyEnd:$("#tr_fyend").value,
@@ -7020,8 +7139,13 @@ function renderTaxRulesView(){
       cg:{
         equityLtMonths:+$("#tr_cg_eqmonths").value||0,stcgRate:+$("#tr_cg_stcg").value||0,
         ltcgRate:+$("#tr_cg_ltcg").value||0,ltcgExempt:+$("#tr_cg_exempt").value||0,
-        otherLtMonths:+$("#tr_cg_othmonths").value||0,sgbLtMonths:+$("#tr_cg_sgbmonths").value||0,
-        otherLtRate:+$("#tr_cg_othrate").value||0
+        // otherLtMonths/otherLtRate/sgbLtMonths are kept as legacy mirrors of the
+        // Gold/other and SGB classes (classifyCGAsset's cgClassRule() fallback,
+        // and any older code still reading the flat fields directly) -- classes
+        // is the source of truth now, edited per-class in the table above.
+        otherLtMonths:classes.goldOther.ltMonths,otherLtRate:classes.goldOther.ltRate,
+        sgbLtMonths:classes.sgb.ltMonths,
+        classes
       },
       surchargeSlabs:trWorking.surchargeSlabs,
       surcharge:{capOnSpecialIncome:+$("#tr_surcharge_cap").value||0}
@@ -7824,8 +7948,14 @@ if(goldenTestMode){
         })));
       }
       if(fixture.operation==="capitalGains"){
+        taxRules(); // migration guard -- ensures cg.classes exists before any per-class override below
+        if(fixture.cgClassOverrides){
+          for(const[key,val] of Object.entries(fixture.cgClassOverrides)){
+            S.taxRules.cg.classes[key]={...S.taxRules.cg.classes[key],...val};
+          }
+        }
         const result=capGainsBreakdown();
-        return rounded({buckets:result.buckets,ltcg112ANet:result.ltcg112ANet,tax111A:result.tax111A,
+        return rounded({buckets:result.buckets,otherByClass:result.otherByClass,ltcg112ANet:result.ltcg112ANet,tax111A:result.tax111A,
           tax112A:result.tax112A,taxOther:result.taxOther,totalCgTax:result.totalCgTax,excluded:result.excluded.length});
       }
       if(fixture.operation==="surcharge"){
@@ -7991,6 +8121,61 @@ if(goldenTestMode){
         if(!downloaded)throw new Error("Merge did not produce a workbook download");
         return {source:await workbookSignature(source),output:await workbookSignature(downloaded.bytes),
           remainingQueues:queueCounts(),mime:downloaded.type};
+      }finally{documentAdapter.downloadFile=originalDownload;}
+    },
+    // Freezes the P0 edit-write-back guarantee: an already-exported Capital
+    // Gains sale that gets reclassified locally (sheetClass changed) must
+    // UPDATE its existing sheet row on the next merge, never append a
+    // duplicate -- the exact gap the plan called out ("changing a Capital
+    // Gains classification locally does not update an already-exported
+    // workbook row"). Runs two real merges through the same capReviewMerge/
+    // confirm path the UI uses, chaining the first merge's output workbook
+    // in as the second merge's source, then inspects the raw sheet XML.
+    async cgReclassifyRoundTrip(){
+      const source=new Uint8Array(await documentAdapter.fetchBundledAsset("./template.xlsx"));
+      const event={id:"fixture-cg-reclass",cls:"Equity",type:"Mutual Fund",holdName:"Fixture MF Reclass",
+        acct:"Fixture Broker",qty:10,costBasis:1000,mfCategory:"Debt",acqDate:"2024-01-10",
+        saleDate:"2026-09-01",proceeds:1600,source:"ledger"};
+      S.capGainsEvents=[event];
+      const readSheet=async bytes=>{
+        const zip=await capUnzip(bytes);
+        const path=capFindSheetPath(zip,"Capital Gains");
+        const sheetXml=new TextDecoder().decode(zip[path]);
+        const rowN=cgCurrentRowN(zip,sheetXml);
+        const rows=[];
+        for(let r=5;r<=rowN;r++)if(catCellText(zip,sheetXml,`B${r}`)!=null)rows.push(r);
+        return{rows,cls:rows.length===1?catCellText(zip,sheetXml,`B${rows[0]}`):null};
+      };
+      let downloaded=null;
+      const originalDownload=documentAdapter.downloadFile;
+      documentAdapter.downloadFile=(name,bytes,type)=>{downloaded={name,bytes:new Uint8Array(bytes),type};};
+      try{
+        setQueues({cgQueue:[{id:"merge-cg-add",action:"addEvent",createdAt:"2026-09-01T00:00:00.000Z",eventId:event.id}]});
+        goToView("data");$("#v-data").innerHTML='<div id="cm_result"></div>';
+        await capReviewMerge(source,"template.xlsx");
+        let confirm=$("#cm_confirm");
+        if(!confirm)throw new Error("add merge: "+(($("#cm_result")&&$("#cm_result").textContent)||"no confirmation"));
+        await confirm.onclick();
+        if(!downloaded)throw new Error("add merge did not produce a download");
+        const afterAdd=downloaded.bytes;
+        const add=await readSheet(afterAdd);
+
+        const stored=(S.capGainsEvents||[]).find(x=>x.id===event.id);
+        stored.sheetClass="Gold / Gold MF / other";
+        cgQueueEdit(stored,stored.sheetMatchKey);
+
+        downloaded=null;
+        goToView("data");$("#v-data").innerHTML='<div id="cm_result"></div>';
+        await capReviewMerge(afterAdd,"template-with-sale.xlsx");
+        confirm=$("#cm_confirm");
+        if(!confirm)throw new Error("edit merge: "+(($("#cm_result")&&$("#cm_result").textContent)||"no confirmation"));
+        await confirm.onclick();
+        if(!downloaded)throw new Error("edit merge did not produce a download");
+        const edit=await readSheet(downloaded.bytes);
+
+        return{rowCountAfterAdd:add.rows.length,classAfterAdd:add.cls,
+          rowCountAfterEdit:edit.rows.length,classAfterEdit:edit.cls,
+          sameRow:add.rows.length===1&&edit.rows.length===1&&add.rows[0]===edit.rows[0]};
       }finally{documentAdapter.downloadFile=originalDownload;}
     }
   };

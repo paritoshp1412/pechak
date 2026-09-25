@@ -29,6 +29,20 @@ export function normalizeTaxRules(saved, defaults) {
   for (const key of ["cg", "surchargeSlabs", "surcharge", "advanceTax", "fdTds"]) {
     if (rules[key] == null) rules[key] = structuredClone(defaults[key]);
   }
+  const legacyMonths = rules.cg.otherLtMonths ?? defaults.cg.otherLtMonths;
+  const legacyRate = rules.cg.otherLtRate ?? defaults.cg.otherLtRate;
+  const legacySgbMonths = rules.cg.sgbLtMonths ?? defaults.cg.sgbLtMonths;
+  const migrated = {
+    foreignUnlisted: { ltMonths: legacyMonths, ltRate: legacyRate },
+    debtPre2023: { ltMonths: legacyMonths, ltRate: legacyRate },
+    goldOther: { ltMonths: legacyMonths, ltRate: legacyRate },
+    sgb: { ltMonths: legacySgbMonths, ltRate: legacyRate },
+    realEstate: { ltMonths: legacyMonths, ltRate: legacyRate }
+  };
+  rules.cg.classes ||= {};
+  for (const [key, fallback] of Object.entries(migrated)) {
+    rules.cg.classes[key] = { ...fallback, ...(rules.cg.classes[key] || {}) };
+  }
   if (rules.alThreshold == null) rules.alThreshold = defaults.alThreshold;
   return rules;
 }

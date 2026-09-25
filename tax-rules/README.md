@@ -7,6 +7,11 @@ release-only fields. The engine's known scope boundary is preserved: one shared
 `otherLtRate` covers supported non-111A/112A long-term gains. This workflow does
 not invent the richer capital-gains categories available in the workbook.
 
+(Note: the *runtime* app's own `S.taxRules.cg` has since grown a richer
+per-class `classes` model — see `pechak-documentation.md` §7 item 14 — but that
+is purely local state migration, independent of this publishing schema, and
+does not change what this pack publishes or how it's validated.)
+
 The checked-in `pechak-release-2026-01.pub.pem` key and existing signature are
 the repository release key, not a claim about external production custody. Its
 PKCS#8 private key was generated only for the initial repository release,

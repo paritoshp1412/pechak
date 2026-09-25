@@ -431,11 +431,84 @@
         "ltcg112A": 200000,
         "ltcgOther": 40000
       },
+      "otherByClass": {
+        "goldOther": { "gain": 40000, "rate": 0.13 }
+      },
       "ltcg112ANet": 75000,
       "tax111A": 20,
       "tax112A": 9375,
       "taxOther": 5000,
       "totalCgTax": 14395,
+      "excluded": 0
+    }
+  },
+  {
+    "name": "per-class other-asset rates diverge (debtPre2023/goldOther/sgb/realEstate)",
+    "operation": "capitalGains",
+    "cgClassOverrides": {
+      "debtPre2023": { "ltRate": 0.20 },
+      "goldOther": { "ltRate": 0.10 },
+      "sgb": { "ltRate": 0.05 },
+      "realEstate": { "ltRate": 0.30 }
+    },
+    "capGainsEvents": [
+      {
+        "id": "debt-pre2023",
+        "type": "Mutual Fund",
+        "mfCategory": "Debt",
+        "costBasis": 100000,
+        "proceeds": 150000,
+        "acqDate": "2022-01-01",
+        "saleDate": "2026-06-01",
+        "source": "ledger"
+      },
+      {
+        "id": "gold-other",
+        "cls": "Gold",
+        "type": "Digital Gold",
+        "costBasis": 100000,
+        "proceeds": 120000,
+        "acqDate": "2020-01-01",
+        "saleDate": "2026-06-01",
+        "source": "ledger"
+      },
+      {
+        "id": "sgb-sale",
+        "type": "SGB",
+        "costBasis": 50000,
+        "proceeds": 70000,
+        "acqDate": "2024-01-01",
+        "saleDate": "2026-06-01",
+        "source": "ledger"
+      },
+      {
+        "id": "real-estate-sale",
+        "sheetClass": "Real Estate",
+        "costBasis": 2000000,
+        "proceeds": 2500000,
+        "acqDate": "2015-01-01",
+        "saleDate": "2026-06-01",
+        "source": "ledger"
+      }
+    ],
+    "expected": {
+      "buckets": {
+        "slab": 0,
+        "stcg111A": 0,
+        "ltcg112A": 0,
+        "ltcgOther": 590000
+      },
+      "otherByClass": {
+        "debtPre2023": { "gain": 50000, "rate": 0.2 },
+        "goldOther": { "gain": 20000, "rate": 0.1 },
+        "sgb": { "gain": 20000, "rate": 0.05 },
+        "realEstate": { "gain": 500000, "rate": 0.3 }
+      },
+      "ltcg112ANet": 0,
+      "tax111A": 0,
+      "tax112A": 0,
+      "taxOther": 163000,
+      "totalCgTax": 163000,
       "excluded": 0
     }
   },

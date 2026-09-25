@@ -31,8 +31,27 @@ test("regime calculations apply deductions and cess", () => {
 test("legacy tax rules are migrated without replacing saved values", () => {
   const saved = { ...rules, cg: undefined, fdTds: undefined, alThreshold: undefined, cess: .05 };
   const migrated = normalizeTaxRules(saved, rules);
-  assert.deepEqual(migrated.cg, rules.cg);
+  assert.equal(migrated.cg.equityLtMonths, rules.cg.equityLtMonths);
   assert.deepEqual(migrated.fdTds, rules.fdTds);
   assert.equal(migrated.alThreshold, rules.alThreshold);
   assert.equal(migrated.cess, .05);
+});
+
+test("capital gains 'other' classes migrate from the legacy shared fields and preserve per-class overrides", () => {
+  const cgDefaults = { equityLtMonths: 12, otherLtMonths: 24, sgbLtMonths: 12, otherLtRate: .125 };
+  const defaults = { ...rules, cg: cgDefaults };
+
+  const legacyOnly = normalizeTaxRules({ ...rules, cg: { ...cgDefaults } }, defaults);
+  assert.deepEqual(legacyOnly.cg.classes.goldOther, { ltMonths: 24, ltRate: .125 });
+  assert.deepEqual(legacyOnly.cg.classes.foreignUnlisted, { ltMonths: 24, ltRate: .125 });
+  assert.deepEqual(legacyOnly.cg.classes.debtPre2023, { ltMonths: 24, ltRate: .125 });
+  assert.deepEqual(legacyOnly.cg.classes.realEstate, { ltMonths: 24, ltRate: .125 });
+  assert.deepEqual(legacyOnly.cg.classes.sgb, { ltMonths: 12, ltRate: .125 });
+
+  const withOverride = normalizeTaxRules(
+    { ...rules, cg: { ...cgDefaults, classes: { goldOther: { ltMonths: 36, ltRate: .2 } } } },
+    defaults
+  );
+  assert.deepEqual(withOverride.cg.classes.goldOther, { ltMonths: 36, ltRate: .2 });
+  assert.deepEqual(withOverride.cg.classes.sgb, { ltMonths: 12, ltRate: .125 });
 });

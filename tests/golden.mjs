@@ -201,6 +201,12 @@ try{
   assert.equal(receipt.appliedFamilies,12,"receipt must report every queue family");
   assert.equal(receipt.backupCount,1,"receipts must be included in portable backups");
   assert.notDeepStrictEqual(actual.allQueueMerge.output,actual.allQueueMerge.source,"merge must change workbook XML");
+  const cgReclassify=await cdp.evaluate("window.__pechakTestApi.cgReclassifyRoundTrip()");
+  assert.equal(cgReclassify.rowCountAfterAdd,1,"CG add merge must write exactly one sale row");
+  assert.equal(cgReclassify.classAfterAdd,"Debt MF (bought >=1Apr23)","CG add merge must classify by mfCategory/acqDate");
+  assert.equal(cgReclassify.rowCountAfterEdit,1,"reclassifying an exported sale must not append a duplicate row");
+  assert.equal(cgReclassify.classAfterEdit,"Gold / Gold MF / other","reclassify merge must update the existing row's class");
+  assert.equal(cgReclassify.sameRow,true,"the edit merge must update the same sheet row the add merge created");
   socket.close();
   if(update){
     await mkdir(path.dirname(expectedPath),{recursive:true});
