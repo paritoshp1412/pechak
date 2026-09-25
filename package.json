@@ -1,0 +1,39 @@
+{
+  "name": "pechak",
+  "version": "1.5.0",
+  "description": "",
+  "main": "sw.js",
+  "scripts": {
+    "test": "npm run test:unit && npm run build && npm run test:integration:built && npm run test:journeys:built",
+    "test:unit": "node --test tests/unit/*.test.mjs tests/tax-rules/*.test.mjs",
+    "test:integration": "npm run build && npm run test:integration:built",
+    "test:integration:built": "node tests/golden.mjs",
+    "test:journeys": "npm run build && npm run test:journeys:built",
+    "test:journeys:built": "playwright test",
+    "test:golden": "node tests/golden.mjs",
+    "test:golden:update": "node tests/golden.mjs --update",
+    "tax-rules:validate": "node scripts/tax-rules/validate.mjs",
+    "tax-rules:test": "node --test tests/tax-rules/*.test.mjs",
+    "tax-rules:diff": "node scripts/tax-rules/diff.mjs",
+    "tax-rules:keygen": "node scripts/tax-rules/bootstrap-key.mjs",
+    "tax-rules:sign": "node scripts/tax-rules/sign.mjs",
+    "tax-rules:verify": "node scripts/tax-rules/verify.mjs",
+    "tax-rules:promote": "node scripts/tax-rules/promote.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "ajv": "^8.17.1",
+    "canonicalize": "^2.1.0",
+    "vite": "^8.3.1"
+  },
+  "dependencies": {
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

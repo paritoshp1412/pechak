@@ -1,0 +1,9 @@
+node_modules/
+dist/
+tests/.tmp/
+tax-rules/private/
+*.pk8
+*.private.pem
+*.key
+
+/test-results/
